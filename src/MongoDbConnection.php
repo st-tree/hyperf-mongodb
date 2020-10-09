@@ -128,7 +128,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
             foreach ($cursor as $document) {
                 $document = (array)$document;
-                $document['_id'] = (string)$document['_id'];
+//                $document['_id'] = (string)$document['_id'];
                 $result[] = $document;
             }
         } catch (\Exception $e) {
@@ -176,7 +176,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
             foreach ($cursor as $document) {
                 $document = (array)$document;
-                $document['_id'] = (string)$document['_id'];
+//                $document['_id'] = (string)$document['_id'];
                 $data[] = $document;
             }
 
