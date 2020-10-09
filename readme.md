@@ -1,7 +1,7 @@
 # hyperf mongodb pool
 
 ```
-composer require yumufeng/hyperf-mongodb
+composer require suntekcorps/hyperf-mongodb
 ```
 
 ## config 
