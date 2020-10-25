@@ -14,6 +14,7 @@ use Hyperf\Utils\Context;
  */
 class MongoDb
 {
+    use Attributes;
     /**
      * @var PoolFactory
      */
@@ -24,28 +25,34 @@ class MongoDb
      */
     protected $poolName = 'default';
 
+    protected $casts = [];
+
+    protected $table = '';
+
     public function __construct(PoolFactory $factory)
     {
         $this->factory = $factory;
     }
 
+
     /**
      * 返回满足filer的全部数据
      *
-     * @param string $namespace
      * @param array $filter
      * @param array $options
      * @return array
      * @throws MongoDBException
      */
-    public function fetchAll(string $namespace, array $filter = [], array $options = []): array
+    public function fetchAll( array $filter = [], array $options = []): array
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->executeQueryAll($namespace, $filter, $options);
+            isset($options['projection']) && $options['projection'] = $this->relationsAttribute($options['projection']);
+            !empty($filter) && $filter = $this->relationsAttribute($filter);
+            return $collection->executeQueryAll($this->table, $filter, $options);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -54,7 +61,6 @@ class MongoDb
     /**
      * 返回满足filer的分页数据
      *
-     * @param string $namespace
      * @param int $limit
      * @param int $currentPage
      * @param array $filter
@@ -62,14 +68,16 @@ class MongoDb
      * @return array
      * @throws MongoDBException
      */
-    public function fetchPagination(string $namespace, int $limit, int $currentPage, array $filter = [], array $options = []): array
+    public function fetchPagination( int $limit, int $currentPage, array $filter = [], array $options = []): array
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->execQueryPagination($namespace, $limit, $currentPage, $filter, $options);
+            isset($options['projection']) && $options['projection'] = $this->relationsAttribute($options['projection']);
+            !empty($filter) && $filter = $this->relationsAttribute($filter);
+            return $collection->execQueryPagination($this->table, $limit, $currentPage, $filter, $options);
         } catch (\Exception  $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -77,12 +85,11 @@ class MongoDb
 
     /**
      * 批量插入
-     * @param $namespace
      * @param array $data
      * @return bool|string
      * @throws MongoDBException
      */
-    public function insertAll($namespace, array $data)
+    public function insertAll(array $data)
     {
         if (count($data) == count($data, 1)) {
             throw new  MongoDBException('data is can only be a two-dimensional array');
@@ -92,7 +99,10 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->insertAll($namespace, $data);
+            foreach ($data as $key=>&$value){
+                $value = $this->relationsAttribute($value);
+            }
+            return $collection->insertAll($this->table, $data);
         } catch (MongoDBException $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -100,20 +110,20 @@ class MongoDb
 
     /**
      * 数据插入数据库
-     *
-     * @param $namespace
+     * @Task
      * @param array $data
      * @return bool|mixed
      * @throws MongoDBException
      */
-    public function insert($namespace, array $data = [])
+    public function insert(array $data = [])
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->insert($namespace, $data);
+            $data = $this->relationsAttribute($data);
+            return $collection->insert($this->table, $data);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -122,20 +132,19 @@ class MongoDb
     /**
      * 更新数据满足$filter的行的信息成$newObject
      *
-     * @param $namespace
      * @param array $filter
      * @param array $newObj
      * @return bool
      * @throws MongoDBException
      */
-    public function updateRow($namespace, array $filter = [], array $newObj = []): bool
+    public function updateRow( array $filter = [], array $newObj = []): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->updateRow($namespace, $filter, $newObj);
+            return $collection->updateRow($this->table, $filter, $newObj);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -144,20 +153,19 @@ class MongoDb
     /**
      * 只更新数据满足$filter的行的列信息中在$newObject中出现过的字段
      *
-     * @param $namespace
      * @param array $filter
      * @param array $newObj
      * @return bool
      * @throws MongoDBException
      */
-    public function updateColumn($namespace, array $filter = [], array $newObj = []): bool
+    public function updateColumn( array $filter = [], array $newObj = []): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->updateColumn($namespace, $filter, $newObj);
+            return $collection->updateColumn($this->table, $filter, $newObj);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -166,20 +174,20 @@ class MongoDb
     /**
      * 删除满足条件的数据，默认只删除匹配条件的第一条记录，如果要删除多条$limit=true
      *
-     * @param string $namespace
      * @param array $filter
      * @param bool $limit
      * @return bool
      * @throws MongoDBException
      */
-    public function delete(string $namespace, array $filter = [], bool $limit = false): bool
+    public function delete( array $filter = [], bool $limit = false): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->delete($namespace, $filter, $limit);
+            !empty($filter) && $filter = $this->relationsAttribute($filter);
+            return $collection->delete($this->table, $filter, $limit);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -188,19 +196,19 @@ class MongoDb
     /**
      * 返回collection中满足条件的数量
      *
-     * @param string $namespace
      * @param array $filter
      * @return bool
      * @throws MongoDBException
      */
-    public function count(string $namespace, array $filter = [])
+    public function count( array $filter = [])
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->count($namespace, $filter);
+            !empty($filter) && $filter = $this->relationsAttribute($filter);
+            return $collection->count($this->table, $filter);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -209,20 +217,20 @@ class MongoDb
 
     /**
      * 聚合查询
-     * @param string $namespace
      * @param array $filter
      * @return bool
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function command(string $namespace, array $filter = [])
+    public function command( array $filter = [])
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->command($namespace, $filter);
+            var_dump($filter);
+            return $collection->command($this->table, $filter);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -248,6 +256,39 @@ class MongoDb
     private function getContextKey(): string
     {
         return sprintf('mongodb.connection.%s', $this->poolName);
+    }
+
+
+    private function castAttribute(string $castType, $value)
+    {
+        switch ($castType) {
+            case 'int':
+            case 'integer':
+                return $this->fromInt($value);
+            case 'string':
+                return $this->fromString($value);
+            case 'bool':
+            case 'boolean':
+                return $this->fromBool($value);
+            case 'object':
+                return $this->fromIdObj($value);
+        }
+        return $value;
+    }
+
+    private function relationsAttribute(array $attributes){
+        $castAttribute = [];
+        foreach ($this->casts as $key => $value){
+            if (! array_key_exists($key, $attributes)) {
+                continue;
+            }
+            $castAttribute[$key] = $this->castAttribute($value,$attributes[$key]);
+        }
+        return $castAttribute;
+    }
+
+    public function setCasts(array $casts = []){
+        $this->casts = $casts;
     }
 
 }
