@@ -3,7 +3,6 @@
 
 namespace Hyperf\Mongodb;
 
-
 use Hyperf\Mongodb\Exception\MongoDBException;
 use Hyperf\Mongodb\Pool\PoolFactory;
 use Hyperf\Utils\Context;
@@ -43,7 +42,7 @@ class MongoDb
      * @return array
      * @throws MongoDBException
      */
-    public function fetchAll( array $filter = [], array $options = []): array
+    public function fetchAll(array $filter = [], array $options = []): array
     {
         try {
             /**
@@ -68,7 +67,7 @@ class MongoDb
      * @return array
      * @throws MongoDBException
      */
-    public function fetchPagination( int $limit, int $currentPage, array $filter = [], array $options = []): array
+    public function fetchPagination(int $limit, int $currentPage, array $filter = [], array $options = []): array
     {
         try {
             /**
@@ -99,7 +98,7 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            foreach ($data as $key=>&$value){
+            foreach ($data as $key => &$value) {
                 $value = $this->relationsAttribute($value);
             }
             return $collection->insertAll($this->table, $data);
@@ -137,13 +136,15 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function updateRow( array $filter = [], array $newObj = []): bool
+    public function updateRow(array $filter = [], array $newObj = []): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
+            $filter = $this->relationsAttribute($filter);
+            $newObj = $this->relationsAttribute($newObj);
             return $collection->updateRow($this->table, $filter, $newObj);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -158,13 +159,15 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function updateColumn( array $filter = [], array $newObj = []): bool
+    public function updateColumn(array $filter = [], array $newObj = []): bool
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
+            $filter = $this->relationsAttribute($filter);
+            $newObj = $this->relationsAttribute($newObj);
             return $collection->updateColumn($this->table, $filter, $newObj);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -179,7 +182,7 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function delete( array $filter = [], bool $limit = false): bool
+    public function delete(array $filter = [], bool $limit = false): bool
     {
         try {
             /**
@@ -200,7 +203,7 @@ class MongoDb
      * @return bool
      * @throws MongoDBException
      */
-    public function count( array $filter = [])
+    public function count(array $filter = [])
     {
         try {
             /**
@@ -217,20 +220,24 @@ class MongoDb
 
     /**
      * 聚合查询
+     * @param array $where
      * @param array $filter
+     * @param array $group
+     * @param array $sort
      * @return bool
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function command( array $filter = [])
+    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [])
     {
         try {
             /**
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            var_dump($filter);
-            return $collection->command($this->table, $filter);
+            !empty($where) && $where = $this->relationsAttribute($where);
+            $pipeline = $this->getPipeline($where,$filter,$group,$sort);
+            return $collection->command($this->table, $pipeline);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -259,6 +266,25 @@ class MongoDb
     }
 
 
+    /**
+     * @param array $where  
+     * @param int $skip
+     * @param int $limit
+     * @param array $sort
+     * @param array $fields
+     * @return array        返回pipeline
+     */
+    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [])
+    {
+        $arr=[];
+        !empty($where)  &&  $arr[] = ['$match'  =>$where];
+        !empty($fields) &&  $arr[] = ['$project'=>$fields];
+        !empty($group)  &&  $arr[] = ['$group'  =>$group];
+        !empty($sort)   &&  $arr[] = ['$sort'   =>$sort];
+        return $arr;
+    }
+
+
     private function castAttribute(string $castType, $value)
     {
         switch ($castType) {
@@ -276,19 +302,26 @@ class MongoDb
         return $value;
     }
 
-    private function relationsAttribute(array $attributes){
+    private function relationsAttribute(array $attributes)
+    {
         $castAttribute = [];
-        foreach ($this->casts as $key => $value){
+        foreach ($this->casts as $key => $value) {
             if (! array_key_exists($key, $attributes)) {
                 continue;
             }
-            $castAttribute[$key] = $this->castAttribute($value,$attributes[$key]);
+            if (is_array($attributes[$key])){
+                foreach ($attributes[$key] as $item => $row){
+                    $castAttribute[$key][$item] = $this->castAttribute($value, $row);
+                }
+            }elseif(is_string($attributes[$key])){
+                $castAttribute[$key] = $this->castAttribute($value, $attributes[$key]);
+            }
         }
         return $castAttribute;
     }
 
-    public function setCasts(array $casts = []){
+    public function setCasts(array $casts = [])
+    {
         $this->casts = $casts;
     }
-
 }

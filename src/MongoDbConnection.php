@@ -125,10 +125,9 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         try {
             $query = new Query($filter, $options);
             $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
-
             foreach ($cursor as $document) {
                 $document = (array)$document;
-//                $document['_id'] = (string)$document['_id'];
+                isset($document['_id']) && $document['_id'] = (string)$document['_id'];
                 $result[] = $document;
             }
         } catch (\Exception $e) {
@@ -176,7 +175,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
             foreach ($cursor as $document) {
                 $document = (array)$document;
-//                $document['_id'] = (string)$document['_id'];
+                isset($document['_id']) && $document['_id'] = (string)$document['_id'];
                 $data[] = $document;
             }
 
@@ -399,23 +398,26 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
     /**
      * 获取collection 中满足条件的条数
-     *
      * @param string $namespace
-     * @param array $filter
+     * @param array $pipeline
      * @return bool
      * @throws Exception
      * @throws MongoDBException
      */
-    public function command(string $namespace, array $filter = [])
+    public function command(string $namespace, array $pipeline = [])
     {
         try {
             $command = new Command([
                 'aggregate' => $namespace,
-                'pipeline' => $filter,
+                'pipeline' => $pipeline,
                 'cursor' => new \stdClass()
             ]);
             $cursor = $this->connection->executeCommand($this->config['db'], $command);
-            $count = $cursor->toArray()[0];
+            $count = $cursor->toArray();
+            foreach ($count as &$value){
+                $value = (array)$value;
+                isset($value['_id']) && $value['_id'] = (array)$value['_id'];
+            }
         } catch (\Exception $e) {
             $count = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -424,6 +426,8 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             return $count;
         }
     }
+
+    
 
     /**
      * 判断当前的数据库连接是否已经超时
