@@ -302,19 +302,30 @@ class MongoDb
         return $value;
     }
 
-    private function relationsAttribute(array $attributes)
+    /**
+     * @param array $attributes 查询参数
+     * @param string $key 递归时传递的上下文键名
+     * @return array
+     */
+    private function relationsAttribute(array $attributes,$contextKey = '')
     {
         $castAttribute = [];
-        foreach ($this->casts as $key => $value) {
-            if (! array_key_exists($key, $attributes)) {
-                continue;
-            }
-            if (is_array($attributes[$key])){
-                foreach ($attributes[$key] as $item => $row){
-                    $castAttribute[$key][$item] = $this->castAttribute($value, $row);
+        foreach ($this->casts as $cKey => $cValue) {
+            foreach($attributes as $aKey => $aValue){
+                if (is_array($aValue) || strpos($aKey,'$')!==false) {
+                    isset($this->casts[$aKey]) && $contextKey = $aKey;
+                    $castAttribute[$aKey] = $this->relationsAttribute($aValue,$contextKey);
+                } else {
+                    if ($contextKey) {
+                        //上下文键名不为空时,循环casts到对应键名时得到键类型,再格式化
+                        if ($contextKey==$cKey) {
+                            $castAttribute[$aKey] = $this->castAttribute($cValue, $aValue);
+                        }
+                    } else if ($cKey == $aKey) {
+                        //上下文键名为空时,循环casts到对应键名时得到键类型,再格式化
+                        $castAttribute[$aKey] = $this->castAttribute($cValue, $aValue);
+                    }
                 }
-            }elseif(is_string($attributes[$key])){
-                $castAttribute[$key] = $this->castAttribute($value, $attributes[$key]);
             }
         }
         return $castAttribute;
