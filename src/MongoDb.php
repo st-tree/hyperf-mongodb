@@ -304,7 +304,7 @@ class MongoDb
 
     /**
      * @param array $attributes 查询参数
-     * @param string $key 递归时传递的上下文键名
+     * @param string $contextKey 递归时传递的上下文键名
      * @return array
      */
     private function relationsAttribute(array $attributes,$contextKey = '')
