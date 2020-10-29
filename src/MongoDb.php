@@ -310,22 +310,29 @@ class MongoDb
     private function relationsAttribute(array $attributes,$contextKey = '')
     {
         $castAttribute = [];
-        foreach ($this->casts as $cKey => $cValue) {
-            foreach($attributes as $aKey => $aValue){
-                if (is_array($aValue) || strpos($aKey,'$')!==false) {
-                    isset($this->casts[$aKey]) && $contextKey = $aKey;
-                    $castAttribute[$aKey] = $this->relationsAttribute($aValue,$contextKey);
+        foreach($attributes as $aKey => $aValue){
+            if (isset($this->casts[$aKey]) || $contextKey) {
+                if ($contextKey) {
+                    $type = $this->casts[$contextKey];
                 } else {
-                    if ($contextKey) {
-                        //上下文键名不为空时,循环casts到对应键名时得到键类型,再格式化
-                        if ($contextKey==$cKey) {
-                            $castAttribute[$aKey] = $this->castAttribute($cValue, $aValue);
-                        }
-                    } else if ($cKey == $aKey) {
-                        //上下文键名为空时,循环casts到对应键名时得到键类型,再格式化
-                        $castAttribute[$aKey] = $this->castAttribute($cValue, $aValue);
-                    }
+                    $type = $this->casts[$aKey];
                 }
+                if (is_array($aValue)) {
+                    strpos($aKey,'$')===false && $contextKey = $aKey;
+                    foreach($aValue as $k => $v){
+                        $castAttribute[$aKey][$k] = $this->relationsAttribute($v,$contextKey);
+                    }
+                    $contextKey = '';
+                } elseif (is_string($aValue)) {
+                    $castAttribute[$aKey] = $this->castAttribute($type, $aValue);
+                } else {
+                    $castAttribute[$aKey] = $aValue;
+                }
+            } elseif(strpos($aKey,'$')!==false) {
+                foreach($aValue as $k => $v){
+                    $castAttribute[$aKey][$k] = $this->relationsAttribute($v);
+                }
+
             }
         }
         return $castAttribute;

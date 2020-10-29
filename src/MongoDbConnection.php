@@ -117,9 +117,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     public function executeQueryAll(string $namespace, array $filter = [], array $options = [])
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-            $filter['_id'] = new ObjectId($filter['_id']);
-        }
         // 查询数据
         $result = [];
         try {
@@ -153,9 +150,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     public function execQueryPagination(string $namespace, int $limit = 10, int $currentPage = 0, array $filter = [], array $options = [])
     {
-        if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-            $filter['_id'] = new ObjectId($filter['_id']);
-        }
         // 查询数据
         $data = [];
         $result = [];
@@ -271,10 +265,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function updateRow(string $namespace, array $filter = [], array $newObj = []): bool
     {
         try {
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
-            }
-
             $bulk = new BulkWrite;
             $bulk->update(
                 $filter,
@@ -312,10 +302,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function updateColumn(string $namespace, array $filter = [], array $newObj = []): bool
     {
         try {
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
-            }
-
             $bulk = new BulkWrite;
             $bulk->update(
                 $filter,
@@ -347,10 +333,6 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     public function delete(string $namespace, array $filter = [], bool $limit = false): bool
     {
         try {
-            if (!empty($filter['_id']) && !($filter['_id'] instanceof ObjectId)) {
-                $filter['_id'] = new ObjectId($filter['_id']);
-            }
-
             $bulk = new BulkWrite;
             $bulk->delete($filter, ['limit' => $limit]);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
