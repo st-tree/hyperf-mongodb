@@ -49,7 +49,6 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            isset($options['projection']) && $options['projection'] = $this->relationsAttribute($options['projection']);
             !empty($filter) && $filter = $this->relationsAttribute($filter);
             return $collection->executeQueryAll($this->table, $filter, $options);
         } catch (\Exception $e) {
@@ -74,7 +73,6 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            isset($options['projection']) && $options['projection'] = $this->relationsAttribute($options['projection']);
             !empty($filter) && $filter = $this->relationsAttribute($filter);
             return $collection->execQueryPagination($this->table, $limit, $currentPage, $filter, $options);
         } catch (\Exception  $e) {
