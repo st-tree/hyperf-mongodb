@@ -265,7 +265,7 @@ class MongoDb
 
 
     /**
-     * @param array $where  
+     * @param array $where
      * @param int $skip
      * @param int $limit
      * @param array $sort
@@ -301,37 +301,41 @@ class MongoDb
     }
 
     /**
-     * @param array $attributes 查询参数
+     * @param $attributes mixed 查询参数
      * @param string $contextKey 递归时传递的上下文键名
      * @return array
      */
-    private function relationsAttribute(array $attributes,$contextKey = '')
+    private function relationsAttribute($attributes,$contextKey = '')
     {
-        $castAttribute = [];
-        foreach($attributes as $aKey => $aValue){
-            if (isset($this->casts[$aKey]) || $contextKey) {
-                if ($contextKey) {
-                    $type = $this->casts[$contextKey];
-                } else {
-                    $type = $this->casts[$aKey];
-                }
-                if (is_array($aValue)) {
-                    strpos($aKey,'$')===false && $contextKey = $aKey;
-                    foreach($aValue as $k => $v){
-                        $castAttribute[$aKey][$k] = $this->relationsAttribute($v,$contextKey);
+        if (is_array($attributes)) {
+            $castAttribute = [];
+            foreach($attributes as $aKey => $aValue){
+                if (isset($this->casts[$aKey]) || $contextKey) {
+                    if ($contextKey) {
+                        $type = $this->casts[$contextKey];
+                    } else {
+                        $type = $this->casts[$aKey];
                     }
-                    $contextKey = '';
-                } elseif (is_string($aValue)) {
-                    $castAttribute[$aKey] = $this->castAttribute($type, $aValue);
-                } else {
-                    $castAttribute[$aKey] = $aValue;
+                    if (is_array($aValue)) {
+                        strpos($aKey,'$')===false && $contextKey = $aKey;
+                        foreach($aValue as $k => $v){
+                            $castAttribute[$aKey][$k] = $this->relationsAttribute($v,$contextKey);
+                        }
+                        $contextKey = '';
+                    } elseif (is_string($aValue)) {
+                        $castAttribute[$aKey] = $this->castAttribute($type, $aValue);
+                    } else {
+                        $castAttribute[$aKey] = $aValue;
+                    }
+                } elseif(strpos($aKey,'$')!==false) {
+                    foreach($aValue as $k => $v){
+                        $castAttribute[$aKey][$k] = $this->relationsAttribute($v);
+                    }
                 }
-            } elseif(strpos($aKey,'$')!==false) {
-                foreach($aValue as $k => $v){
-                    $castAttribute[$aKey][$k] = $this->relationsAttribute($v);
-                }
-
             }
+        } else {
+            $type = $this->casts[$contextKey];
+            $castAttribute = $this->castAttribute($type, $attributes);
         }
         return $castAttribute;
     }
