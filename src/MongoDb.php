@@ -335,6 +335,8 @@ class MongoDb
                     foreach($aValue as $k => $v){
                         $castAttribute[$aKey][$k] = $this->relationsAttribute($v);
                     }
+                } else {
+                    $castAttribute[$aKey] = $aValue;
                 }
             }
         } else {
