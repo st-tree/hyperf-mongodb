@@ -26,6 +26,8 @@ class MongoDb
 
     protected $casts = [];
 
+    protected $defaults = [];
+
     protected $table = '';
 
     public function __construct(PoolFactory $factory)
@@ -97,6 +99,7 @@ class MongoDb
              */
             $collection = $this->getConnection();
             foreach ($data as $key => &$value) {
+                $value = $this->setUnsetValueByDefaults($value);
                 $value = $this->relationsAttribute($value);
             }
             return $collection->insertAll($this->table, $data);
@@ -119,6 +122,7 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
+            $data = $this->setUnsetValueByDefaults($data);
             $data = $this->relationsAttribute($data);
             return $collection->insert($this->table, $data);
         } catch (\Exception $e) {
@@ -343,5 +347,15 @@ class MongoDb
     public function setCasts(array $casts = [])
     {
         $this->casts = $casts;
+    }
+
+    public function setUnsetValueByDefaults(&$attributes)
+    {
+        foreach ($this->defaults as $key => $default) {
+            if (!isset($attributes[$key])) {
+                $attributes[$key] = $default;
+            }
+        }
+        return $attributes;
     }
 }
