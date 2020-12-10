@@ -101,6 +101,7 @@ class MongoDb
             foreach ($data as $key => &$value) {
                 $value = $this->setUnsetValueByDefaults($value);
                 $value = $this->relationsAttribute($value);
+                $value = $this->sortAttribute($value);
             }
             return $collection->insertAll($this->table, $data);
         } catch (MongoDBException $e) {
@@ -124,6 +125,7 @@ class MongoDb
             $collection = $this->getConnection();
             $data = $this->setUnsetValueByDefaults($data);
             $data = $this->relationsAttribute($data);
+            $data = $this->sortAttribute($data);
             return $collection->insert($this->table, $data);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -359,5 +361,18 @@ class MongoDb
             }
         }
         return $attributes;
+    }
+
+    private function sortAttribute($attributes)
+    {
+        $sortedData = [];
+        foreach ($this->casts as $key => $type) {
+            if (isset($attributes[$key])) {
+                $sortedData[$key] = $attributes[$key];
+                unset($attributes[$key]);
+            }
+        }
+        $sortedData = array_merge($sortedData, $attributes);
+        return $sortedData;
     }
 }
