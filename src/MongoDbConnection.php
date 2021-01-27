@@ -31,6 +31,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
      */
     protected $config;
 
+    /**
+     * @var string
+     */
+    protected $db;
+
+
+
     public function __construct(ContainerInterface $container, Pool $pool, array $config)
     {
         parent::__construct($container, $pool);
@@ -60,31 +67,47 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             /**
              * http://php.net/manual/zh/mongodb-driver-manager.construct.php
              */
-
-            $username = $this->config['username'];
-            $password = $this->config['password'];
-            if (!empty($username) && !empty($password)) {
-                $uri = sprintf(
-                    'mongodb://%s:%s@%s:%d/%s',
-                    $username,
-                    $password,
-                    $this->config['host'],
-                    $this->config['port'],
-                    $this->config['db']
-                );
-            } else {
-                $uri = sprintf(
-                    'mongodb://%s:%d/%s',
-                    $this->config['host'],
-                    $this->config['port'],
-                    $this->config['db']
-                );
+            //mode
+            $mode = $this->config['mode'];
+            $config = $this->config['settings'][$mode];
+            if (!$config) {
+                throw new InvalidArgumentException("mode[$mode]未获取到配置");
             }
+            
+            //user password
+            $username = $config['username'];
+            $password = $config['password'];
+            if (!empty($username) && !empty($password)) {
+                $authStr = "$username:$password@";
+            } else {
+                $authStr = "";
+            }
+            //host
+            $hosts = $config['host'];
+            $ports = $config['port'];
+            is_string($hosts) && $hosts = [$hosts];
+            $urls = [];
+            foreach ($hosts as $i => $host) {
+                $port = is_string($ports) ? $ports : $ports[$i];
+                $urls[] = "$host:$port";
+            }
+            $urlsStr = implode(',', $urls);
+            //db
+            $this->db = $config['db'];
+            $dbStr = "/$this->db";
+            //组装
+            $uri = "mongodb://{$authStr}{$urlsStr}{$dbStr}";
+            
             $urlOptions = [];
             //数据集
-            $replica = isset($this->config['replica']) ? $this->config['replica'] : null;
+            $replica = isset($config['replica']) ? $config['replica'] : null;
             if ($replica) {
                 $urlOptions['replicaSet'] = $replica;
+            }
+            //读偏好
+            $readPreference = isset($config['readPreference']) ? $config['readPreference'] : null;
+            if ($readPreference) {
+                $urlOptions['readPreference'] = $readPreference;
             }
             $this->connection = new Manager($uri, $urlOptions);
         } catch (InvalidArgumentException $e) {
@@ -121,7 +144,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         $result = [];
         try {
             $query = new Query($filter, $options);
-            $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
+            $cursor = $this->connection->executeQuery($this->db . '.' . $namespace, $query);
             foreach ($cursor as $document) {
                 $document = (array)$document;
                 isset($document['_id']) && $document['_id'] = (string)$document['_id'];
@@ -165,7 +188,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
         try {
             $query = new Query($filter, $options);
-            $cursor = $this->connection->executeQuery($this->config['db'] . '.' . $namespace, $query);
+            $cursor = $this->connection->executeQuery($this->db . '.' . $namespace, $query);
 
             foreach ($cursor as $document) {
                 $document = (array)$document;
@@ -206,7 +229,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $bulk = new BulkWrite();
             $insertId = (string)$bulk->insert($data);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
-            $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $this->connection->executeBulkWrite($this->db . '.' . $namespace, $bulk, $written);
         } catch (\Exception $e) {
             $insertId = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -237,7 +260,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 $insertId[] = (string)$bulk->insert($items);
             }
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
-            $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $this->connection->executeBulkWrite($this->db . '.' . $namespace, $bulk, $written);
         } catch (\Exception $e) {
             $insertId = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -272,7 +295,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 ['multi' => true, 'upsert' => false]
             );
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
-            $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $result = $this->connection->executeBulkWrite($this->db . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
             $update = $modifiedCount == 0 ? false : true;
         } catch (\Exception $e) {
@@ -309,7 +332,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 ['multi' => false, 'upsert' => false]
             );
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
-            $result = $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $result = $this->connection->executeBulkWrite($this->db . '.' . $namespace, $bulk, $written);
             $modifiedCount = $result->getModifiedCount();
             $update = $modifiedCount == 1 ? true : false;
         } catch (\Exception $e) {
@@ -336,7 +359,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $bulk = new BulkWrite;
             $bulk->delete($filter, ['limit' => $limit]);
             $written = new WriteConcern(WriteConcern::MAJORITY, 1000);
-            $this->connection->executeBulkWrite($this->config['db'] . '.' . $namespace, $bulk, $written);
+            $this->connection->executeBulkWrite($this->db . '.' . $namespace, $bulk, $written);
             $delete = true;
         } catch (\Exception $e) {
             $delete = false;
@@ -362,7 +385,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'count' => $namespace,
                 'query' => $filter
             ]);
-            $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            $cursor = $this->connection->executeCommand($this->db, $command);
             $count = $cursor->toArray()[0]->n;
             return $count;
         } catch (\Exception $e) {
@@ -394,7 +417,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'pipeline' => $pipeline,
                 'cursor' => new \stdClass()
             ]);
-            $cursor = $this->connection->executeCommand($this->config['db'], $command);
+            $cursor = $this->connection->executeCommand($this->db, $command);
             $count = $cursor->toArray();
             foreach ($count as &$value){
                 $value = (array)$value;
@@ -422,7 +445,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     {
         try {
             $command = new Command(['ping' => 1]);
-            $this->connection->executeCommand($this->config['db'], $command);
+            $this->connection->executeCommand($this->db, $command);
             return true;
         } catch (\Throwable $e) {
             return $this->catchMongoException($e);
