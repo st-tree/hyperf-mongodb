@@ -73,7 +73,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             if (!$config) {
                 throw new InvalidArgumentException("mode[$mode]未获取到配置");
             }
-            
+
             //user password
             $username = $config['username'];
             $password = $config['password'];
@@ -97,7 +97,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
             $dbStr = "/$this->db";
             //组装
             $uri = "mongodb://{$authStr}{$urlsStr}{$dbStr}";
-            
+
             $urlOptions = [];
             //数据集
             $replica = isset($config['replica']) ? $config['replica'] : null;
@@ -432,7 +432,7 @@ class MongoDbConnection extends Connection implements ConnectionInterface
         }
     }
 
-    
+
 
     /**
      * 判断当前的数据库连接是否已经超时
@@ -461,37 +461,65 @@ class MongoDbConnection extends Connection implements ConnectionInterface
     {
         switch ($e) {
             case ($e instanceof InvalidArgumentException):
-                {
-                    throw MongoDBException::managerError('mongo argument exception: ' . $e->getMessage());
-                }
+            {
+                throw MongoDBException::managerError('mongo argument exception: ' . $e->getMessage());
+            }
             case ($e instanceof AuthenticationException):
-                {
-                    throw MongoDBException::managerError('mongo数据库连接授权失败:' . $e->getMessage());
-                }
+            {
+                throw MongoDBException::managerError('mongo数据库连接授权失败:' . $e->getMessage());
+            }
             case ($e instanceof ConnectionException):
-                {
-                    /**
-                     * https://cloud.tencent.com/document/product/240/4980
-                     * 存在连接失败的，那么进行重连
-                     */
-                    for ($counts = 1; $counts <= 5; $counts++) {
-                        try {
-                            $this->reconnect();
-                        } catch (\Exception $e) {
-                            continue;
-                        }
-                        break;
+            {
+                /**
+                 * https://cloud.tencent.com/document/product/240/4980
+                 * 存在连接失败的，那么进行重连
+                 */
+                for ($counts = 1; $counts <= 5; $counts++) {
+                    try {
+                        $this->reconnect();
+                    } catch (\Exception $e) {
+                        continue;
                     }
-                    return true;
+                    break;
                 }
+                return true;
+            }
             case ($e instanceof RuntimeException):
-                {
-                    throw MongoDBException::managerError('mongo runtime exception: ' . $e->getMessage());
-                }
+            {
+                throw MongoDBException::managerError('mongo runtime exception: ' . $e->getMessage());
+            }
             default:
-                {
-                    throw MongoDBException::managerError('mongo unexpected exception: ' . $e->getMessage());
-                }
+            {
+                throw MongoDBException::managerError('mongo unexpected exception: ' . $e->getMessage());
+            }
+        }
+    }
+
+
+
+    public function createIndex(string $namespace, string $indexName, array $indexArr = [ "keyName" => 1])
+    {
+        try {
+            $command = new Command([
+                "createIndexes" => $namespace,
+                "indexes"       => [[
+                    "name" => $indexName,
+                    "key"  => $indexArr,
+                    "ns"   => "{$this->db}.$namespace",
+                ]],
+            ]);
+            $cursor = $this->connection->executeCommand($this->db, $command);
+            $result = $cursor->toArray()[0];
+            return $result;
+        } catch (\Exception $e) {
+            $result = false;
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        } catch (Exception $e) {
+            $result = false;
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        } finally {
+            $this->pool->release($this);
+            return $result;
         }
     }
 }

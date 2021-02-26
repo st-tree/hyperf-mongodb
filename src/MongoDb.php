@@ -37,6 +37,33 @@ class MongoDb
 
 
     /**
+     * 重新封装 获取数据
+     * @param $where array
+     * @param array $field array 取值例子 ['_id'=>1]
+     * @param array $sort array
+     * @param int $skip int
+     * @param int $limit int
+     * @return array
+     * @throws MongoDBException
+     */
+    public function get($where, $field = [], $sort = ['_id' => 1], $skip = 0, $limit = 0)
+    {
+        try {
+            $option = [
+                'skip' => $skip,
+                'limit' => $limit,
+                'projection' => $field,
+                'sort' => $sort,
+            ];
+            $mailInfo = $this->fetchAll($where, $option);
+            return $mailInfo;
+        } catch (\Throwable $e) {
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        }
+    }
+    
+    
+    /**
      * 返回满足filer的全部数据
      *
      * @param array $filter
@@ -216,6 +243,19 @@ class MongoDb
             $collection = $this->getConnection();
             !empty($filter) && $filter = $this->relationsAttribute($filter);
             return $collection->count($this->table, $filter);
+        } catch (\Exception $e) {
+            throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
+        }
+    }
+    
+    public function createIndex($indexName, $indexArr, $unique = false)
+    {
+        try {
+            /**
+             * @var $collection MongoDBConnection
+             */
+            $collection = $this->getConnection();
+            return $collection->createIndex($this->table, $indexName, $indexArr, $unique);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
