@@ -292,11 +292,12 @@ class MongoDb
      * @param array $filter
      * @param array $group
      * @param array $sort
+     * @param array $lookup
      * @return bool
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [])
+    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [],array $lookup = [])
     {
         try {
             /**
@@ -304,7 +305,7 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($where) && $where = $this->relationsAttribute($where);
-            $pipeline = $this->getPipeline($where,$filter,$group,$sort);
+            $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookup);
             return $collection->command($this->table, $pipeline);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -342,13 +343,14 @@ class MongoDb
      * @param array $fields
      * @return array        返回pipeline
      */
-    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [])
+    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [], array $lookup = [])
     {
         $arr=[];
         !empty($where)  &&  $arr[] = ['$match'  =>$where];
         !empty($fields) &&  $arr[] = ['$project'=>$fields];
         !empty($group)  &&  $arr[] = ['$group'  =>$group];
         !empty($sort)   &&  $arr[] = ['$sort'   =>$sort];
+        !empty($lookup) &&  $arr[] = ['$lookup' =>$lookup];
         return $arr;
     }
 
@@ -412,10 +414,6 @@ class MongoDb
         return $castAttribute;
     }
 
-    public function setCasts(array $casts = [])
-    {
-        $this->casts = $casts;
-    }
 
     public function setUnsetValueByDefaults(&$attributes)
     {
@@ -438,5 +436,19 @@ class MongoDb
         }
         $sortedData = array_merge($sortedData, $attributes);
         return $sortedData;
+    }
+
+    public function resultFormatter($result)
+    {
+        if ($result) {
+            foreach ($result as $i => $row) {
+                foreach ($row as $key => $value) {
+                    if (isset($this->casts[$key]) && $this->casts[$key] == 'object') {
+                        $result[$i][$key] = (string)$value;
+                    }
+                }
+            }
+        }
+        return $result;
     }
 }
