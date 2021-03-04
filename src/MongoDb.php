@@ -306,6 +306,7 @@ class MongoDb
             $collection = $this->getConnection();
             !empty($where) && $where = $this->relationsAttribute($where);
             $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookups);
+
             return $collection->command($this->table, $pipeline);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -356,7 +357,7 @@ class MongoDb
             $lookups = [$lookups];
         }
         foreach ($lookups as $lookup) {
-            if (!empty($lookup) && isset($lookups['from'])) {
+            if (!empty($lookup) && isset($lookup['from'])) {
                 $arr[] = ['$lookup' =>$lookup];
             }
         }
