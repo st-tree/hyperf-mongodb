@@ -85,8 +85,8 @@ class MongoDb
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
     }
-    
-    
+
+
     /**
      * 返回满足filer的全部数据
      *
@@ -271,7 +271,7 @@ class MongoDb
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
     }
-    
+
     public function createIndex($indexName, $indexArr, $unique = false)
     {
         try {
@@ -292,12 +292,12 @@ class MongoDb
      * @param array $filter
      * @param array $group
      * @param array $sort
-     * @param array $lookup
+     * @param array $lookups
      * @return bool
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [],array $lookup = [])
+    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [],array $lookups = [])
     {
         try {
             /**
@@ -305,7 +305,7 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($where) && $where = $this->relationsAttribute($where);
-            $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookup);
+            $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookups);
             return $collection->command($this->table, $pipeline);
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
@@ -341,16 +341,25 @@ class MongoDb
      * @param int $limit
      * @param array $sort
      * @param array $fields
+     * @param array $lookups
      * @return array        返回pipeline
      */
-    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [], array $lookup = [])
+    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [], array $lookups = [])
     {
         $arr=[];
         !empty($where)  &&  $arr[] = ['$match'  =>$where];
         !empty($fields) &&  $arr[] = ['$project'=>$fields];
         !empty($group)  &&  $arr[] = ['$group'  =>$group];
         !empty($sort)   &&  $arr[] = ['$sort'   =>$sort];
-        !empty($lookup) &&  $arr[] = ['$lookup' =>$lookup];
+        //to 2D
+        if (isset($lookups['from'])) {
+            $lookups = [$lookups];
+        }
+        foreach ($lookups as $lookup) {
+            if (!empty($lookup) && isset($lookups['from'])) {
+                $arr[] = ['$lookup' =>$lookup];
+            }
+        }
         return $arr;
     }
 
