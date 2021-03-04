@@ -35,6 +35,30 @@ class MongoDb
         $this->factory = $factory;
     }
 
+    public function setTable(string $table)
+    {
+        $this->table = $table;
+        return $this;
+    }
+
+    public function setPoolName(string $poolName)
+    {
+        $this->poolName = $poolName;
+        return $this;
+    }
+
+    public function setCasts(array $casts)
+    {
+        $this->casts = $casts;
+        return $this;
+    }
+
+    public function setDefaults(array $defaults)
+    {
+        $this->defaults = $defaults;
+        return $this;
+    }
+
 
     /**
      * 重新封装 获取数据
