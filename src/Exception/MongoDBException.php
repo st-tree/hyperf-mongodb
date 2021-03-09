@@ -2,7 +2,7 @@
 
 namespace Hyperf\Mongodb\Exception;
 
-class MongoDBException extends \Exception
+class MongoDBException extends \RuntimeException
 {
     /**
      * @param string $msg

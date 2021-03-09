@@ -6,7 +6,7 @@
  * Time: 14:36
  */
 
-namespace Hyperf\Mongodb;
+namespace Hyperf\Mongodb\Traits;
 
 
 trait Attributes {

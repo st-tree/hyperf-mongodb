@@ -402,10 +402,10 @@ class MongoDbConnection extends Connection implements ConnectionInterface
 
 
     /**
-     * 获取collection 中满足条件的条数
+     * executeCommand
      * @param string $namespace
      * @param array $pipeline
-     * @return bool
+     * @return mixed
      * @throws Exception
      * @throws MongoDBException
      */
@@ -418,17 +418,13 @@ class MongoDbConnection extends Connection implements ConnectionInterface
                 'cursor' => new \stdClass()
             ]);
             $cursor = $this->connection->executeCommand($this->db, $command);
-            $count = $cursor->toArray();
-            foreach ($count as &$value){
-                $value = (array)$value;
-                isset($value['_id']) && $value['_id'] = (array)$value['_id'];
-            }
+            $result = $cursor->toArray();
         } catch (\Exception $e) {
-            $count = false;
+            $result = false;
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         } finally {
             $this->pool->release($this);
-            return $count;
+            return $result;
         }
     }
 

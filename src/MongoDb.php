@@ -5,7 +5,10 @@ namespace Hyperf\Mongodb;
 
 use Hyperf\Mongodb\Exception\MongoDBException;
 use Hyperf\Mongodb\Pool\PoolFactory;
+use Hyperf\Mongodb\Traits\Attributes;
+use Hyperf\Mongodb\Traits\Result;
 use Hyperf\Utils\Context;
+use MongoDB\BSON\ObjectId;
 
 /**
  * Class MongoDb
@@ -14,6 +17,8 @@ use Hyperf\Utils\Context;
 class MongoDb
 {
     use Attributes;
+    use Result;
+
     /**
      * @var PoolFactory
      */
@@ -266,7 +271,8 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($filter) && $filter = $this->relationsAttribute($filter);
-            return $collection->count($this->table, $filter);
+            $result = $collection->count($this->table, $filter);
+            return $result;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -279,7 +285,8 @@ class MongoDb
              * @var $collection MongoDBConnection
              */
             $collection = $this->getConnection();
-            return $collection->createIndex($this->table, $indexName, $indexArr, $unique);
+            $result = $collection->createIndex($this->table, $indexName, $indexArr, $unique);
+            return $result;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -293,11 +300,11 @@ class MongoDb
      * @param array $group
      * @param array $sort
      * @param array $lookups
-     * @return bool
+     * @return mixed
      * @throws MongoDBException
      * @throws \MongoDB\Driver\Exception\Exception
      */
-    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [],array $lookups = [])
+    public function command(array $where = [],array $filter = [],array $group = [],array $sort = [],array $lookups = [], $skip = 0, $limit = 0)
     {
         try {
             /**
@@ -305,9 +312,9 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($where) && $where = $this->relationsAttribute($where);
-            $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookups);
-
-            return $collection->command($this->table, $pipeline);
+            $pipeline = $this->getPipeline($where,$filter,$group,$sort,$lookups, $skip, $limit);
+            $result = $collection->command($this->table, $pipeline);
+            return $result;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -345,13 +352,15 @@ class MongoDb
      * @param array $lookups
      * @return array        返回pipeline
      */
-    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [], array $lookups = [])
+    private function getPipeline(array $where = [], array $fields = [],array $group=[], array $sort = [], array $lookups = [], $skip = 0, $limit = 0)
     {
         $arr=[];
         !empty($where)  &&  $arr[] = ['$match'  =>$where];
         !empty($fields) &&  $arr[] = ['$project'=>$fields];
         !empty($group)  &&  $arr[] = ['$group'  =>$group];
         !empty($sort)   &&  $arr[] = ['$sort'   =>$sort];
+        !empty($skip)   &&  $arr[] = ['$skip'   =>$skip];
+        !empty($limit)  &&  $arr[] = ['$limit'  =>$limit];
         //to 2D
         if (isset($lookups['from'])) {
             $lookups = [$lookups];
@@ -365,6 +374,12 @@ class MongoDb
     }
 
 
+    /**
+     * 格式转换
+     * @param string $castType
+     * @param $value
+     * @return bool|int|\MongoDB\BSON\ObjectId|string
+     */
     private function castAttribute(string $castType, $value)
     {
         switch ($castType) {
@@ -425,6 +440,11 @@ class MongoDb
     }
 
 
+    /**
+     * 设置未定义字段为默认值
+     * @param $attributes
+     * @return mixed
+     */
     public function setUnsetValueByDefaults(&$attributes)
     {
         foreach ($this->defaults as $key => $default) {
@@ -435,6 +455,11 @@ class MongoDb
         return $attributes;
     }
 
+    /**
+     * 排序
+     * @param $attributes
+     * @return array
+     */
     private function sortAttribute($attributes)
     {
         $sortedData = [];
@@ -448,17 +473,7 @@ class MongoDb
         return $sortedData;
     }
 
-    public function resultFormatter($result)
-    {
-        if ($result) {
-            foreach ($result as $i => $row) {
-                foreach ($row as $key => $value) {
-                    if (isset($this->casts[$key]) && $this->casts[$key] == 'object') {
-                        $result[$i][$key] = (string)$value;
-                    }
-                }
-            }
-        }
-        return $result;
-    }
+
+
+
 }
