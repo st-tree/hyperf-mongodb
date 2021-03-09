@@ -74,7 +74,7 @@ trait Result
                 if (isset($mail[$conf['key']])) {
                     if (isset($mail[$conf['key']][0][$conf['value']])) {
                         $v = $mail[$conf['key']][0][$conf['value']];
-                        if (isset($conf['new_key'])) {
+                        if (isset($conf['new_key']) && $conf['new_key']) {
                             $mail[$conf['new_key']] = $v;
                         } else {
                             $mail[$conf['value']] = $v;
