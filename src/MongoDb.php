@@ -6,9 +6,9 @@ namespace Hyperf\Mongodb;
 use Hyperf\Mongodb\Exception\MongoDBException;
 use Hyperf\Mongodb\Pool\PoolFactory;
 use Hyperf\Mongodb\Traits\Attributes;
+use Hyperf\Mongodb\Traits\LogFile;
 use Hyperf\Mongodb\Traits\Result;
 use Hyperf\Utils\Context;
-use MongoDB\BSON\ObjectId;
 
 /**
  * Class MongoDb
@@ -18,6 +18,7 @@ class MongoDb
 {
     use Attributes;
     use Result;
+    use LogFile;
 
     /**
      * @var PoolFactory
@@ -34,6 +35,10 @@ class MongoDb
     protected $defaults = [];
 
     protected $table = '';
+
+    protected $logFile = false;//是否开启日志文件
+
+    protected $logFilePath = '';//日志文件路径
 
     public function __construct(PoolFactory $factory)
     {
@@ -159,7 +164,15 @@ class MongoDb
                 $value = $this->relationsAttribute($value);
                 $value = $this->sortAttribute($value);
             }
-            return $collection->insertAll($this->table, $data);
+            $insIds = $collection->insertAll($this->table, $data);
+            if ($this->isLogFile()) {
+                $this->addLog(
+                    $this->logFilePath,
+                    sprintf("插入数据[%d]:%s", count($data), json_encode($insIds)),
+                    $data
+                );
+            }
+            return $insIds;
         } catch (MongoDBException $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -182,7 +195,15 @@ class MongoDb
             $data = $this->setUnsetValueByDefaults($data);
             $data = $this->relationsAttribute($data);
             $data = $this->sortAttribute($data);
-            return $collection->insert($this->table, $data);
+            $insId = $collection->insert($this->table, $data);
+            if ($this->isLogFile()) {
+                $this->addLog(
+                    $this->logFilePath,
+                    sprintf("插入数据:%s", json_encode($insId)),
+                    $data
+                );
+            }
+            return $insId;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -205,7 +226,15 @@ class MongoDb
             $collection = $this->getConnection();
             $filter = $this->relationsAttribute($filter);
             $newObj = $this->relationsAttribute($newObj);
-            return $collection->updateRow($this->table, $filter, $newObj);
+            $updated = $collection->updateRow($this->table, $filter, $newObj);
+            if ($this->isLogFile()) {
+                $this->addLog(
+                    $this->logFilePath,
+                    sprintf("更新数据:%s", json_encode($updated)),
+                    [$filter, $newObj]
+                );
+            }
+            return $updated;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -228,7 +257,15 @@ class MongoDb
             $collection = $this->getConnection();
             $filter = $this->relationsAttribute($filter);
             $newObj = $this->relationsAttribute($newObj);
-            return $collection->updateColumn($this->table, $filter, $newObj);
+            $updated = $collection->updateColumn($this->table, $filter, $newObj);
+            if ($this->isLogFile()) {
+                $this->addLog(
+                    $this->logFilePath,
+                    sprintf("更新数据:%s", json_encode($updated)),
+                    [$filter, $newObj]
+                );
+            }
+            return $updated;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -250,7 +287,15 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($filter) && $filter = $this->relationsAttribute($filter);
-            return $collection->delete($this->table, $filter, $limit);
+            $deleted = $collection->delete($this->table, $filter, $limit);
+            if ($this->isLogFile()) {
+                $this->addLog(
+                    $this->logFilePath,
+                    sprintf("更新数据:%s", json_encode($deleted)),
+                    [$filter, $limit]
+                );
+            }
+            return $deleted;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -271,8 +316,8 @@ class MongoDb
              */
             $collection = $this->getConnection();
             !empty($filter) && $filter = $this->relationsAttribute($filter);
-            $result = $collection->count($this->table, $filter);
-            return $result;
+            $count = $collection->count($this->table, $filter);
+            return $count;
         } catch (\Exception $e) {
             throw new MongoDBException($e->getFile() . $e->getLine() . $e->getMessage());
         }
@@ -473,6 +518,14 @@ class MongoDb
         return $sortedData;
     }
 
+    private function isLogFile()
+    {
+        if ($this->logFile && $this->logFilePath) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
 
 
